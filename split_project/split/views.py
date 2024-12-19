@@ -1,87 +1,79 @@
+from django.contrib.auth.models import User
 from flask import Response
 from rest_framework import viewsets, status
-from .models import User, Expense
-from .serializers import UserSerializer, ExpenseSerializer
+from rest_framework.generics import CreateAPIView, UpdateAPIView, ListAPIView
+
+from .models import  Expense
+from .serializers import  ExpenseSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+class ExpenseCreateAPIView(CreateAPIView):
+    """Создание перевала"""
+
+    queryset = Expense.objects.filter(id=0)
+    serializer_class = ExpenseSerializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            serializer = self.serializer_class(data=request.data)
+            response_data = {}
+
+            if serializer.is_valid():
+                serializer.save()
+                response_data = {
+                    'status': 200,
+                    'message': '',
+                    'id': serializer.data.get('id')
+                }
+            else:
+                response_data = {
+                    'status': 400,
+                    'message': 'Неверный запрос',
+                    'id': serializer.data.get('id')
+                }
+        except:
+            response_data = {
+                'status': 500,
+                'message': 'Ошибка подключения к базе данных',
+                'id': serializer.data.get('id')
+            }
 
 
-class ExpenseViewSet(viewsets.ModelViewSet):
+        return Response(response_data)
+
+
+class ExpenseUpdateAPIView(UpdateAPIView):
+    """Обновление данных перевала"""
+
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def partial_update(self, request, *args, **kwargs):
+
+        pereval = self.get_object()
+        serializer = self.serializer_class(pereval, data=request.data, partial=True)
+
         if serializer.is_valid():
-            # Извлекаем данные из сериализатора
-            amount = serializer.validated_data['amount']
-            description = serializer.validated_data['description']
-            user = serializer.validated_data['user']
-            # Создаем новый расход через менеджер
-            expense = Expense.objects.create_expense(amount, description, user)
-            return Response(ExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            response_data = {
+                'status': 200,
+                'message': 'Данные успешно изменены',
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            response_data = {
+                'status': 400,
+                'message': 'Данные о пользователе нельзя изменять',
+            }
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-# Реализация метода submitData
-    def submitData(self, request):
-        # Получаем данные из запроса
-        amount = request.data.get('amount')
-        description = request.data.get('description')
-        user_id = request.data.get('user_id')
+class ExpenseListAPIView(ListAPIView):
+    """Вывод списка перевалов, добавленных пользователем"""
 
-        if not amount or not description or not user_id:
-            return Response({'error': 'Missing required fields'}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, email):
+        perevals = Expense.objects.filter(user__email=email).order_by('id')
+        serializer = ExpenseSerializer(perevals, many=True)
 
-        try:
-            user = User.objects.get(id=user_id)  # Получаем пользователя по ID
-        except User.DoesNotExist:
-            return Response({'error': 'User  not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Создаем новый расход
-        expense = Expense.objects.create_expense(amount=amount, description=description, user=user)
-
-        return Response(ExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
-
-        # Метод для получения одной записи по ID
-        def retrieve(self, request, pk=None):
-            try:
-                expense = self.get_object()  # Получаем объект по ID
-                return Response(ExpenseSerializer(expense).data, status=status.HTTP_200_OK)
-            except Expense.DoesNotExist:
-                return Response({'error': 'Expense not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Метод для редактирования записи
-        def partial_update(self, request, pk=None):
-            try:
-                expense = self.get_object()  # Получаем объект по ID
-                if expense.status != Expense.NEW:
-                    return Response({'state': 0, 'message': 'Only expenses with status "new" can be edited.'},
-                                    status=status.HTTP_400_BAD_REQUEST)
-
-                # Обновляем поля, кроме тех, что содержат ФИО, адрес почты и номер телефона
-                for field in ['amount', 'description']:
-                    if field in request.data:
-                        setattr(expense, field, request.data[field])
-                expense.save()  # Сохраняем изменения
-
-                return Response({'state': 1, 'message': 'Expense updated successfully.'}, status=status.HTTP_200_OK)
-            except Expense.DoesNotExist:
-                return Response({'state': 0, 'message': 'Expense not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Метод для получения всех расходов пользователя по email
-        def list(self, request):
-            email = request.query_params.get('user__email')
-            if email:
-                try:
-                    user = User.objects.get(email=email)
-                    expenses = Expense.objects.filter(user=user)
-                    return Response(ExpenseSerializer(expenses, many=True).data, status=status.HTTP_200_OK)
-                except User.DoesNotExist:
-                    return Response({'error': 'User  not found'}, status=status.HTTP_404_NOT_FOUND)
-            else:
-                return Response({'error': 'Email parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data)
