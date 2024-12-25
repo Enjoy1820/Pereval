@@ -3,9 +3,6 @@ from rest_framework import serializers
 from .models import  Expense, Coords, Level, PassUser, Images
 
 
-
-
-
 class CoordsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Coords
@@ -13,6 +10,11 @@ class CoordsSerializer(serializers.ModelSerializer):
 
 
 class LevelSerializer(serializers.ModelSerializer):
+    winter = serializers.CharField(required=False)
+    spring = serializers.CharField(required=False)
+    summer = serializers.CharField(required=False)
+    autumn = serializers.CharField(required=False)
+
     class Meta:
         model = Level
         fields = ['winter', 'spring', 'summer', 'autumn']
@@ -25,16 +27,11 @@ class PassUserSerializer(serializers.ModelSerializer):
 
 
 class ImagesSerializer(serializers.ModelSerializer):
+    data = serializers.ImageField(read_only=True)
+
     class Meta:
         model = Images
-        fields = [ 'data', 'title']
-
-
-
-class ExpenseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Expense
-        fields = '__all__'
+        fields = ['data', 'title']
 
 
 class ExpenseSerializer(WritableNestedModelSerializer):
@@ -46,7 +43,6 @@ class ExpenseSerializer(WritableNestedModelSerializer):
     images = ImagesSerializer(many=True)
 
     class Meta:
-
         model = Expense
         fields = [
             'id', 'status', 'beauty_title', 'title', 'other_titles', 'connect',
@@ -68,9 +64,23 @@ class ExpenseSerializer(WritableNestedModelSerializer):
 
         for img in images:
             title = img.pop('title')
-            data = img.pop('data')
-            Images.objects.create(title=title, data=data, expense=pereval)
+            # data = img.pop('data')
+            Images.objects.create(title=title, expense=pereval)
 
         return pereval
 
+    def validate(self, value):
+        if self.instance:
+            if self.instance.status != 'new':
+                raise serializers.ValidationError('Редактировать можно только'
+                                                  'записи статуса "new"')
 
+            user_data = value.get('user')
+
+            if user_data:
+                user = self.instance.user
+                for field in 'email fam name otc phone'.split():
+                    if getattr(user, field) != user_data[field]:
+                        raise serializers.ValidationError('Данные о пользователе'
+                                                          'менять нельзя')
+        return value

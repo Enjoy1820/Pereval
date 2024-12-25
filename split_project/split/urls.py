@@ -1,11 +1,11 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import UserViewSet, ExpenseViewSet
-
-router = DefaultRouter()
-router.register(r'users', UserViewSet)
-router.register(r'expenses', ExpenseViewSet)
+from django.urls import path
+from .views import (
+    ExpenseRetrieveUpdateAPIView,
+    ExpenseCreateAPIView, ExpenseListAPIView
+)
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('submitData/', ExpenseCreateAPIView.as_view()),
+    path('submitData/<int:id>', ExpenseRetrieveUpdateAPIView.as_view()),
+    path('submitData/user__email=<str:email>/', ExpenseListAPIView.as_view()),
 ]

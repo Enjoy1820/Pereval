@@ -33,11 +33,10 @@ class Level(models.Model):
         (level_3B, '3Б'),
     )
 
-    winter = models.CharField(max_length=2, choices=LEVEL_CHOICES)
-    spring = models.CharField(max_length=2, choices=LEVEL_CHOICES)
-    summer = models.CharField(max_length=2, choices=LEVEL_CHOICES)
-    autumn = models.CharField(max_length=2, choices=LEVEL_CHOICES)
-
+    winter = models.CharField(max_length=2, choices=LEVEL_CHOICES, null=True, blank=True)
+    spring = models.CharField(max_length=2, choices=LEVEL_CHOICES, null=True, blank=True)
+    summer = models.CharField(max_length=2, choices=LEVEL_CHOICES, null=True, blank=True)
+    autumn = models.CharField(max_length=2, choices=LEVEL_CHOICES, null=True, blank=True)
 
     def __str__(self):
         return f'{self.winter} {self.spring} {self.summer} {self.autumn}'
@@ -60,7 +59,7 @@ class PassUser(models.Model):
 class Images(models.Model):
     expense = models.ForeignKey('Expense', on_delete=models.CASCADE, blank=True, null=True,
                                 related_name='images')
-    data = models.URLField(verbose_name='Изображение', blank=True, null=True)
+    data = models.ImageField(verbose_name='Изображение', blank=True, null=True)
     title = models.CharField(max_length=255, verbose_name='Название', blank=True, null=True)
     date_added = models.DateField(auto_now_add=True)
 
@@ -69,11 +68,10 @@ class Images(models.Model):
         return f'{self.pk} {self.title}'
 
 
-
 class ExpenseManager(models.Manager):
-    def create_expense(self, amount, description, user):
+    def create_expense(self, *args, **kwargs):
 
-        expense = self.create(amount=amount, description=description, user=user, status='new')
+        expense = self.create(*args, **kwargs)
         return expense
 
 
@@ -90,8 +88,6 @@ class Expense(models.Model):
         (REJECTED, 'Отклонен'),
     ]
 
-
-
     beauty_title = models.CharField(max_length=255, verbose_name='Название препятствия')
     title = models.CharField(max_length=255, verbose_name='Название вершины')
     other_titles = models.CharField(max_length=255, verbose_name='Другое название')
@@ -104,4 +100,4 @@ class Expense(models.Model):
     objects = ExpenseManager()
 
     def __str__(self):
-        return f"{self.description} - {self.amount}"
+        return f"{self.title}"
